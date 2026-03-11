@@ -8,12 +8,12 @@ ENV PISTON_BIND_ADDR=127.0.0.1:3000
 # Install proxy dependencies
 RUN npm install http-proxy
 
-# Install the language runtimes (Corrected c++ to cpp)
-RUN /piston/packages/index.sh && \
-    /piston/packages/install.sh python && \
-    /piston/packages/install.sh node && \
-    /piston/packages/install.sh java && \
-    /piston/packages/install.sh cpp
+# Install the language runtimes
+RUN /piston/index.sh && \
+    /piston/install.sh python && \
+    /piston/install.sh node && \
+    /piston/install.sh java && \
+    /piston/install.sh cpp
 
 # Copy the security proxy
 COPY proxy.js /piston/proxy.js
