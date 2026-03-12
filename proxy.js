@@ -1,9 +1,8 @@
 const http = require('http');
-const httpProxy = require('http-proxy');
-const proxy = httpProxy.createProxyServer({});
 
 const PORT = process.env.PORT || 2000;
-const TARGET = 'http://127.0.0.1:3000'; // Piston API will run here
+const TARGET_HOST = '127.0.0.1';
+const TARGET_PORT = 3000;
 const SECRET = process.env.EXECUTION_SECRET;
 
 if (!SECRET) {
@@ -12,9 +11,8 @@ if (!SECRET) {
 }
 
 const server = http.createServer((req, res) => {
-    // Check Authorization header
+    // Security Check: Verify Bearer Token
     const authHeader = req.headers['authorization'];
-    
     if (!authHeader || authHeader !== `Bearer ${SECRET}`) {
         console.warn(`Unauthorized access attempt from ${req.socket.remoteAddress}`);
         res.writeHead(401, { 'Content-Type': 'application/json' });
@@ -22,13 +20,27 @@ const server = http.createServer((req, res) => {
         return;
     }
 
-    // Forward valid requests to Piston
-    proxy.web(req, res, { target: TARGET }, (err) => {
+    // Proxy the request to Piston
+    const proxyReq = http.request({
+        host: TARGET_HOST,
+        port: TARGET_PORT,
+        path: req.url,
+        method: req.method,
+        headers: req.headers
+    }, (proxyRes) => {
+        res.writeHead(proxyRes.statusCode, proxyRes.headers);
+        proxyRes.pipe(res, { end: true });
+    });
+
+    proxyReq.on('error', (err) => {
+        console.error('Proxy error:', err);
         res.writeHead(502);
         res.end('Piston Engine Not Ready');
     });
+
+    req.pipe(proxyReq, { end: true });
 });
 
-console.log(`Security Shield active on port ${PORT}`);
-console.log(`Protecting Piston engine at ${TARGET}`);
+console.log(`Neural Security Shield active on port ${PORT}`);
+console.log(`Routing traffic to Piston at ${TARGET_HOST}:${TARGET_PORT}`);
 server.listen(PORT);
