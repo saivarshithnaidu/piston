@@ -4,23 +4,24 @@ FROM ghcr.io/engineer-man/piston/api:latest
 ENV PORT=2000
 ENV PISTON_BIND_ADDR=127.0.0.1:3000
 
-# 2. Set working directory (Proxy Home)
+# 2. Setup internal directory structure
+# Piston expects a /piston directory for data even if the app is elsewhere
+RUN mkdir -p /piston /piston-sec
+
+# 3. Set working directory
 WORKDIR /piston-sec
 
-# 3. Copy the secure proxy
+# 4. Copy the secure proxy
 COPY proxy.js /piston-sec/proxy.js
 
-# 4. Neural Autodiscovery Startup Script
-# This script searches the entire container to find the Piston index.js
+# 5. Neural Autodiscovery Startup Script
 RUN echo '#!/bin/sh\n\
 echo "Initiating Neural Autodiscovery for Piston Engine..."\n\
-# Search everywhere for the entry point, excluding node_modules for speed\n\
+# Search for the entry point\n\
 PISTON_PATH=$(find / -name index.js 2>/dev/null | grep -v "node_modules" | grep "index.js" | head -n 1)\n\
 \n\
 if [ -z "$PISTON_PATH" ]; then\n\
-  echo "CRITICAL: Piston entry point not found. Diagnostics:"\n\
-  echo "Current Context: $(pwd)"\n\
-  echo "Listing Root: $(ls -F /)"\n\
+  echo "CRITICAL: Piston entry point not found."\n\
   exit 1\n\
 fi\n\
 \n\
