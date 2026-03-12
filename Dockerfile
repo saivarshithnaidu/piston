@@ -1,41 +1,50 @@
 FROM ghcr.io/engineer-man/piston/api:latest
 
-# 1. Set environment variables
+# 1. Essential Config
 ENV PORT=2000
+# Force Piston to listen on 3000 (Internal)
 ENV PISTON_BIND_ADDR=127.0.0.1:3000
+ENV PISTON_DATA_DIRECTORY=/piston/data
+ENV PISTON_LOG_DIRECTORY=/piston/logs
+ENV PISTON_PACKAGES_DIRECTORY=/piston/packages
 
 # 2. Setup internal directory structure
-# Piston expects a /piston directory for data even if the app is elsewhere
-RUN mkdir -p /piston /piston-sec
+RUN mkdir -p /piston/data /piston/logs /piston/packages /piston-sec
 
-# 3. Set working directory
-WORKDIR /piston-sec
-
-# 4. Copy the secure proxy
+# 3. Copy the secure proxy
 COPY proxy.js /piston-sec/proxy.js
 
-# 5. Neural Autodiscovery Startup Script
+# 4. robust Startup Script
 RUN echo '#!/bin/sh\n\
-echo "Initiating Neural Autodiscovery for Piston Engine..."\n\
-# Search for the entry point\n\
-PISTON_PATH=$(find / -name index.js 2>/dev/null | grep -v "node_modules" | grep "index.js" | head -n 1)\n\
+echo "[Neural-Bridge] Initializing Piston Core..."\n\
 \n\
-if [ -z "$PISTON_PATH" ]; then\n\
-  echo "CRITICAL: Piston entry point not found."\n\
-  exit 1\n\
+# Find the actual Piston API directory\n\
+# We look for the package.json that belongs to the API\n\
+export PISTON_API_ROOT=$(find / -name package.json 2>/dev/null | xargs grep -l "piston-api" | head -n 1 | xargs dirname)\n\
+\n\
+if [ -z "$PISTON_API_ROOT" ]; then\n\
+  echo "[Error] Could not locate Piston API root. Falling back to /piston/api..."\n\
+  PISTON_API_ROOT="/piston/api"\n\
 fi\n\
 \n\
-ENGINE_DIR=$(dirname $(dirname $PISTON_PATH))\n\
-echo "Target Identified: $PISTON_PATH"\n\
-echo "Starting Piston Engine in $ENGINE_DIR..."\n\
+echo "[Neural-Bridge] Engine Root: $PISTON_API_ROOT"\n\
+cd "$PISTON_API_ROOT"\n\
 \n\
-# Start the engine in its native directory\n\
-(cd $ENGINE_DIR && node src/index.js) & \n\
+# Start Piston in background\n\
+# Default entry point is usually src/index.js\n\
+echo "[Neural-Bridge] Launching Engine..."\n\
+node src/index.js & \n\
 \n\
-echo "Establishing Neural Sync (12 seconds)..."\n\
+# Wait for Piston to bind to 3000\n\
+echo "[Neural-Bridge] Warming up neural clusters (12s)..."\n\
 sleep 12\n\
 \n\
-echo "Activating Neural Security Shield on port $PORT..."\n\
+# List what is listening just in case (if netstat/ss is available)\n\
+if command -v netstat >/dev/null; then\n\
+  netstat -tlpn\n\
+fi\n\
+\n\
+echo "[Neural-Bridge] Starting Security Proxy on $PORT..."\n\
 node /piston-sec/proxy.js\n\
 ' > /piston-sec/start.sh && chmod +x /piston-sec/start.sh
 
