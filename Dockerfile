@@ -1,13 +1,4 @@
-# Stage 1: Build/Install Packages
-FROM ghcr.io/engineer-man/piston/piston:latest AS builder
-
-# Install the language runtimes using the Piston CLI
-RUN piston install python=3.10.0 && \
-    piston install node=18.15.0 && \
-    piston install java=17.0.2 && \
-    piston install cpp=10.2.0
-
-# Stage 2: Final API Image
+# Using the official Piston API image (This pull worked before)
 FROM ghcr.io/engineer-man/piston/api:latest
 
 # Set environment variables
@@ -17,8 +8,14 @@ ENV PISTON_BIND_ADDR=127.0.0.1:3000
 # Install proxy dependencies
 RUN npm install http-proxy
 
-# Copy the pre-installed packages from the builder stage
-COPY --from=builder /piston/packages /piston/packages
+# Install the language runtimes
+# We search for the install scripts to ensure we find the correct path
+RUN cd /piston && \
+    (./index.sh || ./packages/index.sh || sh index.sh) && \
+    (./install.sh python || ./packages/install.sh python || sh install.sh python) && \
+    (./install.sh node || ./packages/install.sh node || sh install.sh node) && \
+    (./install.sh java || ./packages/install.sh java || sh install.sh java) && \
+    (./install.sh cpp || ./packages/install.sh cpp || sh install.sh cpp)
 
 # Copy the security proxy
 COPY proxy.js /piston/proxy.js
